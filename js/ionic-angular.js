@@ -238,7 +238,7 @@ jqLite.prototype.addClass = function(cssClasses) {
       el = this[x];
       if (el.setAttribute) {
 
-        if (cssClasses.indexOf(' ') < 0 && el.classList.add) {
+        if (cssClasses.indexOf(' ') < 0 && el.classList && el.classList.add) {
           el.classList.add(cssClasses);
         } else {
           existingClasses = (' ' + (el.getAttribute('class') || '') + ' ')
@@ -265,7 +265,7 @@ jqLite.prototype.removeClass = function(cssClasses) {
     for (x = 0; x < this.length; x++) {
       el = this[x];
       if (el.getAttribute) {
-        if (cssClasses.indexOf(' ') < 0 && el.classList.remove) {
+        if (cssClasses.indexOf(' ') < 0 && el.classList && el.classList.remove) {
           el.classList.remove(cssClasses);
         } else {
           splitClasses = cssClasses.split(' ');
@@ -2555,7 +2555,9 @@ function($rootScope, $ionicBody, $compile, $timeout, $ionicPlatform, $ionicTempl
 
       var modalEl = jqLite(self.modalEl);
 
-      self.el.classList.remove('hide');
+      if (self.el && self.el.classList && self.el.classList.remove) {
+        self.el.classList.remove('hide');
+      }
       $timeout(function() {
         if (!self._isShown) return;
         $ionicBody.addClass(self.viewType + '-open');
@@ -2597,7 +2599,9 @@ function($rootScope, $ionicBody, $compile, $timeout, $ionicPlatform, $ionicTempl
         modalEl.addClass('ng-enter-active');
         ionic.trigger('resize');
         self.scope.$parent && self.scope.$parent.$broadcast(self.viewType + '.shown', self);
-        self.el.classList.add('active');
+        if (self.el && self.el.classList && self.el.classList.add) {
+          self.el.classList.add('active');
+        }
         self.scope.$broadcast('$ionicHeader.align');
         self.scope.$broadcast('$ionicFooter.align');
         self.scope.$broadcast('$ionic.modalPresented');
@@ -2630,13 +2634,17 @@ function($rootScope, $ionicBody, $compile, $timeout, $ionicPlatform, $ionicTempl
     hide: function() {
       var self = this;
       var modalEl = jqLite(self.modalEl);
+      var scope = self.scope;
+      var el = self.el;
 
       // on iOS, clicks will sometimes bleed through/ghost click on underlying
       // elements
       $ionicClickBlock.show(600);
       stack.remove(self);
 
-      self.el.classList.remove('active');
+      if (el && el.classList && el.classList.remove) {
+        el.classList.remove('active');
+      }
       modalEl.addClass('ng-leave');
 
       $timeout(function() {
@@ -2644,12 +2652,13 @@ function($rootScope, $ionicBody, $compile, $timeout, $ionicPlatform, $ionicTempl
         modalEl.addClass('ng-leave-active')
                .removeClass('ng-enter ng-enter-active active');
 
-        self.scope.$broadcast('$ionic.modalRemoved');
+        scope && scope.$broadcast('$ionic.modalRemoved');
       }, 20, false);
 
-      self.$el.off('click');
+      self.$el && self.$el.off && self.$el.off('click');
+      el && el.off && el.off('click');
       self._isShown = false;
-      self.scope.$parent && self.scope.$parent.$broadcast(self.viewType + '.hidden', self);
+      scope && scope.$parent && scope.$parent.$broadcast(self.viewType + '.hidden', self);
       self._deregisterBackButton && self._deregisterBackButton();
 
       ionic.views.Modal.prototype.hide.call(self);
@@ -2660,10 +2669,15 @@ function($rootScope, $ionicBody, $compile, $timeout, $ionicPlatform, $ionicTempl
       }
 
       return $timeout(function() {
-        if (!modalStack.length) {
+        var modalOfTypeExists = modalStack.some(function(modal) {
+          return modal.viewType === self.viewType;
+        });
+        if (!modalOfTypeExists) {
           $ionicBody.removeClass(self.viewType + '-open');
         }
-        self.el.classList.add('hide');
+        if (el && el.classList && el.classList.add) {
+          el.classList.add('hide');
+        }
       }, self.hideDelay || 320);
     },
 
@@ -5420,7 +5434,8 @@ function($scope, $element, $attrs, $q, $ionicConfig, $ionicHistory) {
       // to calculate the width of the title
       var children = angular.element(element).children();
       for ( var i = 0; i < children.length; i++ ) {
-        if ( angular.element(children[i]).hasClass('nav-bar-title') ) {
+        var child = angular.element(children[i]);
+        if ( child.hasClass('nav-bar-title') && !child.hasClass('hide') ) {
           element = children[i];
           break;
         }
@@ -7091,7 +7106,7 @@ IonicModule
           setScrollLock(false);
         }
 
-        if (isDragging) {
+        if (isDragging && isOverscrolling) {
           nativescroll(scrollParent, deltaY - dragOffset * -1);
         }
 
@@ -7320,9 +7335,24 @@ IonicModule
       var q = $scope.$onRefresh();
 
       if (q && q.then) {
-        q['finally'](function() {
-          $scope.$broadcast('scroll.refreshComplete');
-        });
+        if (q['finally']) {
+          q['finally'](broadcastRefreshEnd);
+        } else {
+          q.then(
+            function(payload) {
+              broadcastRefreshEnd();
+              return payload;
+            },
+            function(error) {
+              broadcastRefreshEnd();
+              throw error;
+            }
+          );
+        }
+      }
+
+      function broadcastRefreshEnd() {
+        $scope.$broadcast('scroll.refreshComplete');
       }
     }
 
@@ -12496,7 +12526,7 @@ IonicModule
 
         $scope.$on('scroll.refreshComplete', function() {
           $scope.$evalAsync(function() {
-            if(scrollCtrl.scrollView){
+            if (scrollCtrl.scrollView) {
               scrollCtrl.scrollView.finishPullToRefresh();
             }
           });
