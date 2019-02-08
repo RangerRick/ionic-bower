@@ -110,13 +110,17 @@
       }
     }
   }
-  &.tabs-top{
-    .tab-item {
-      &.tab-item-active,
-      &.active,
-      &.activated {
-        .badge {
-          top: 4%;
+  @if #{&} {
+    @at-root {
+      #{&}.tabs-top{
+        .tab-item {
+          &.tab-item-active,
+          &.active,
+          &.activated {
+            .badge {
+              top: 4%;
+            }
+          }
         }
       }
     }
